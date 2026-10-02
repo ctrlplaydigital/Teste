@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulador de Proposta Comercial</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--tx:#1b2333;--mut:#667089;--bd:#dde2ee;--pri:#2f5bea;--hl:#e8eefe;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1420;--card:#192032;--tx:#eef1f8;--mut:#9aa4bd;--bd:#2a3350;--pri:#7c9bff;--hl:#222c4a}}
+:root[data-theme="dark"]{--bg:#0f1420;--card:#192032;--tx:#eef1f8;--mut:#9aa4bd;--bd:#2a3350;--pri:#7c9bff;--hl:#222c4a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:24px 16px}
+h1{font-size:1.5rem;margin:0 0 4px}
+p.sub{color:var(--mut);margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+label{display:block;font-size:.85rem;color:var(--mut);margin-bottom:5px}
+input{width:100%;padding:10px 12px;font-size:1rem;border:1px solid var(--bd);border-radius:9px;background:var(--bg);color:var(--tx)}
+input:focus{outline:2px solid var(--pri);border-color:transparent}
+.res{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.r{border:1px solid var(--bd);border-radius:12px;padding:14px;background:var(--card)}
+.r.main{background:var(--hl);border-color:var(--pri)}
+.r span{font-size:.8rem;color:var(--mut);display:block;margin-bottom:6px}
+.r strong{font-size:1.35rem;word-break:break-word}
+button{margin-top:14px;padding:9px 16px;border-radius:9px;border:1px solid var(--bd);background:var(--card);color:var(--tx);cursor:pointer;font-size:.9rem}
+.paper{background:#fff;color:#1b2333;border:1px solid var(--bd);border-radius:14px;overflow:hidden;margin-bottom:12px}
+.ph{background:#2f5bea;color:#fff;padding:18px 20px}.ph h2{margin:0;font-size:1.2rem}.ph p{margin:4px 0 0;opacity:.9;font-size:.9rem}
+.paper table{width:100%;border-collapse:collapse}.paper td{padding:10px 20px;border-bottom:1px solid #e6e9f2;font-size:.95rem}.paper td:last-child{text-align:right;font-weight:600}
+.hl td{background:#e8eefe;font-size:1.05rem}
+h3{margin:22px 0 10px;font-size:1.1rem}
+.note{font-size:.8rem;color:var(--mut);margin-top:12px}
+</style>
+</head>
+<body>
+<main>
+<h1>Simulador de Proposta Comercial</h1>
+<p class="sub">Preencha os dados e veja os resultados em tempo real.</p>
+
+<section class="card">
+<div class="grid">
+<div><label for="material">Valor do material (R$)</label><input id="material" type="number" min="0" step="0.01" inputmode="decimal"></div>
+<div><label for="alunos">Número de alunos</label><input id="alunos" type="number" min="0" step="1" inputmode="numeric"></div>
+<div><label for="assessoria">Valor da assessoria por aluno (R$)</label><input id="assessoria" type="number" min="0" step="0.01" inputmode="decimal"></div>
+<div><label for="comissao">Comissão para o colégio por aluno (R$)</label><input id="comissao" type="number" min="0" step="0.01" inputmode="decimal"></div>
+<div><label for="desconto">Desconto no material (%)</label><input id="desconto" type="number" min="0" max="100" step="0.01" inputmode="decimal" placeholder="0"></div>
+<div><label for="escola">Nome da escola (para a proposta)</label><input id="escola" type="text"></div>
+<div><label for="parcelas">Número de parcelas</label><input id="parcelas" type="number" min="1" step="1" inputmode="numeric"></div>
+</div>
+<button id="limpar" type="button">Limpar campos</button>
+</section>
+
+<section class="res">
+<div class="r main"><span>Valor mensal de investimento por aluno</span><strong id="o-mensal">R$ 0,00</strong></div>
+<div class="r"><span>Receita da editora</span><strong id="o-editora">R$ 0,00</strong></div>
+<div class="r"><span>Receita da franquia</span><strong id="o-franquia">R$ 0,00</strong></div>
+<div class="r"><span>Receita do colégio</span><strong id="o-colegio">R$ 0,00</strong></div>
+</section>
+<h3>Proposta para a escola</h3>
+<div class="paper">
+<div class="ph"><h2>Proposta Comercial</h2><p id="p-escola"></p></div>
+<table><tbody id="p-body"></tbody></table>
+</div>
+<button id="pdf" type="button">Baixar proposta em PDF</button>
+<p class="note" id="pdfmsg"></p>
+<p class="note">Mensal = (material com desconto + assessoria + comissão) ÷ parcelas. Receitas = alunos × respectivo valor.</p>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+var ids=["material","alunos","assessoria","comissao","desconto","parcelas","escola"];
+var brl=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});
+function v(id){var n=parseFloat(document.getElementById(id).value);return isNaN(n)?0:n}
+function calc(){
+  var mat=v("material"),al=v("alunos"),ass=v("assessoria"),com=v("comissao"),desc=v("desconto"),par=v("parcelas");
+  var matDesc=mat-(mat*desc/100);
+  var mensal=par>0?(matDesc+ass+com)/par:0;
+  document.getElementById("o-mensal").textContent=brl.format(mensal);
+  document.getElementById("o-editora").textContent=brl.format(al*matDesc);
+  document.getElementById("o-franquia").textContent=brl.format(al*ass);
+  document.getElementById("o-colegio").textContent=brl.format(al*com);
+  renderProposta();
+}
+function dados(){
+  var mat=v("material"),al=v("alunos"),ass=v("assessoria"),com=v("comissao"),desc=v("desconto"),par=v("parcelas");
+  var md=mat-(mat*desc/100),tot=md+ass+com;
+  return {escola:document.getElementById("escola").value.trim()||"Escola",rows:[
+    ["Valor do material",brl.format(mat)],["Desconto no material",desc+"%"],["Material com desconto",brl.format(md)],
+    ["Assessoria por aluno",brl.format(ass)],["Comissão para o colégio por aluno",brl.format(com)],
+    ["Investimento total por aluno",brl.format(tot)],["Número de parcelas",par+"x"],["Número de alunos",String(al)]],
+    hl:[["Valor mensal de investimento por aluno",brl.format(par>0?tot/par:0)],["Receita do colégio",brl.format(al*com)]]};
+}
+function renderProposta(){
+  var d=dados(),h="";
+  document.getElementById("p-escola").textContent="Para: "+d.escola+" · "+new Date().toLocaleDateString("pt-BR");
+  d.rows.forEach(function(r){h+="<tr><td>"+r[0]+"</td><td>"+r[1]+"</td></tr>"});
+  d.hl.forEach(function(r){h+='<tr class="hl"><td>'+r[0]+"</td><td>"+r[1]+"</td></tr>"});
+  var b=document.getElementById("p-body");b.innerHTML=h;
+  b.querySelectorAll("td:first-child").forEach(function(t){t.textContent=t.textContent});
+}
+function gerarPdf(){
+  var d=dados(),J=window.jspdf.jsPDF,doc=new J({unit:"mm",format:"a4"}),y=52;
+  doc.setFillColor(47,91,234);doc.rect(0,0,210,38,"F");
+  doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(20);doc.text("Proposta Comercial",15,18);
+  doc.setFont("helvetica","normal");doc.setFontSize(11);doc.text("Para: "+d.escola+"  -  "+new Date().toLocaleDateString("pt-BR"),15,28);
+  doc.setTextColor(27,35,51);doc.setFontSize(12);
+  d.rows.forEach(function(r){doc.text(r[0],15,y);doc.text(r[1],195,y,{align:"right"});doc.setDrawColor(220,224,236);doc.line(15,y+3,195,y+3);y+=11});
+  y+=4;
+  d.hl.forEach(function(r){doc.setFillColor(232,238,254);doc.rect(15,y-7,180,12,"F");doc.setFont("helvetica","bold");doc.text(r[0],18,y);doc.text(r[1],192,y,{align:"right"});y+=15});
+  return doc.output("arraybuffer");
+}
+document.getElementById("pdf").addEventListener("click",async function(){
+  var m=document.getElementById("pdfmsg");m.textContent="";
+  try{
+    var dl=window.claude&&await window.claude.use("downloads");
+    if(!dl){window.print();return}
+    await dl.save({filename:"proposta-comercial.pdf",data:gerarPdf()});
+  }catch(e){if(!e||e.code!=="declined")m.textContent="Não foi possível baixar o PDF. Tente novamente."}
+});
+ids.forEach(function(i){document.getElementById(i).addEventListener("input",calc)});
+document.getElementById("limpar").addEventListener("click",function(){ids.forEach(function(i){document.getElementById(i).value=""});calc()});
+calc();
+</script>
+</body>
+</html>
